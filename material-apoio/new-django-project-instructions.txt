@@ -1,0 +1,75 @@
+django-api
+
+Confirgurações:
+- criar uma venv
+- instalar djangorestframework
+- importar o 'rest_framework' nos settings/installed apps após a criação do projeto.
+-dar um pip freeze > requirements.txt para salvar as nossas dependencias.
+
+comando para criar o projeto: django-admin startprojetct nomedoprojeto .
+obs: sempre por o . no final para criar os arquivos no core. 
+
+após isso eu posso criar um app.
+comando para cirar app: django-admin start app nomedoapp.
+
+criar um novo arquivo de urls.py dentro do app
+
+agora eu declaro esse app nos instaled apps
+--------------------------------
+MODELS
+
+é o banco de dados que esse app vai receber. No caso o meu projeto é um bandkamp e eu criei um app para 'musician' que vai receber a base de dados dos musicos. 
+
+no arquivo models.py eu vou criar a classe Musician herdando models.Model e os atributos que um musico deve ter.
+
+ex:
+
+class Musician(models.Model):
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    instrument = models.CharField(max_length=255)
+
+
+---------------------
+
+VIEWS
+
+a View é uma função python que recebe uma solicitação da web e retorna uma resposta. Ela pode ser uma pagina web, um redirecionamento, um erro 404, um doc xml, um json, uma imagem, etc. No django essas views retornaram com o formato JSON
+
+é nas views que configuramos a logica necessária para retornar essas respostas.
+
+A classe APIView é a base para todas as views da api. 
+Os nomes dos metodos da classe sempre tem que ter o mesmo nome do verbo http desejado. Ex get(), post(), put(), delete().
+
+dentro do arquivo de views.py eu importo de rest_framework.views as classes APIView, Response e Request.
+
+crio a classe e os metodos dela da seguinte forma:
+
+class MusicianView(APIView):
+    def post(self, request: Request) -> Response:
+        return Response({'message': "rota POST de Musician!"})
+
+--------------
+URLS
+
+no arquivo urls.py eu defino o caminho para fazer a requisição (endpoint)
+
+PAra que seja possivel o retorno das views ser atrelado com a url eu faço desse jeito
+
+from django.urls import path
+from .views import MusicianView # musician.views ou .views import MusicianViews pois estou no mesmo diretorio
+
+urlpatterns = [
+    path("musician/", MusicianView.as_view())
+]
+
+após isso eu vou dentro na urls.py do core do projeto, adiciono um include na importação do django.urls e no urlspattern eu crio um novo path da seguinte forma:
+
+path("api/", include(musicians.urls)) - pois aqui eu pego todas as rotas declaradas nas urls daquele app
+-----------------------------
+
+após a criação de toda essa estrutura realizamos as migrações:
+
+rodar no terminal python manage.py makemigrations para criar as bases de banco de dados e depois python manage.py migrate  para executar as migrações
+--------------
+

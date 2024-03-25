@@ -1,0 +1,124 @@
+RELACIONAMENTOS DA ORM DENTRO DO DJANGO
+
+
+RELACIONAMENTOS 1-1 (vide bios.models)
+
+Ao criar a models do meu app que irá receber esse tipo de relacionamento eu posso configura-lo da seguinte forma:
+
+1 - crio os atributos da models normalmente;
+2 - abaixo desse eu crio o atributo que vai receber essa atribuição de 1-1
+
+musician = models.OneToOneField("musicians.Musician", on_delete=models.CASCADE)
+    # "musicians.Musician":
+    #   - string que representa com qual classe a relação está denotada
+    # on_delete:
+    #  - que tipo de ação será executada na deleção (.CASCADE - se um musician for deletado a Bio dele também será deletada.)
+
+3- não esquecer de fazer o makemigrations e o migrate para que o banco de dados seja criado no django;
+
+--------------------
+RELACIONAMENTOS 1-N (vide albums.models)
+
+Para utilizar de um relacionamento 1-n utilizamos a classe ForeignKey para criar o campo de referencia no momento da elaboração da model, SEMPRE DO LADO N DA CRIAÇÃO;
+Para isso eu criei um app novo chamado albums, onde um musico pode ter N albums.
+
+class Album(models.Model):
+    name = models.CharField(max_length=255)
+
+    musician = models.ForeignKey(
+"musicians.Musician", on_delete=models.CASCADE, related_name="albums"
+)
+
+aqui passamos a referenciar dentro dos parametros dessa classe um novo atributo de "related_name".
+Por defaut ao usar essa classe o django automaticamente ja cria um atributos para referenciar, no caso o nome seria "album_set", se caso eu preciso puxar essas infos.
+Mas dentro do related_name eu posso passar um nome que faça mais sentido e seja mais pratico de eu busca-lo posteriamente.
+
+OBS: PARA SER ATRIBUIDO O MUSICO DENTRO DESSES BANCOS DE DADOS DO ALBUM EU PRECISO CRIAR UMA VARIAVEL PUXANDO OS DADOS DESSE ARTISTA E PASSANDO ESSA VARIAVEL. 
+
+Ex:
+
+Eu quero criar o album "Batidão Tropical 2" da artista "Pabllo Vittar"
+Primeiro eu tenho que atribuir uma variavel pra ela:
+
+m1 = Musician.objects.get(id=4) - que é o id correspondente da Pabllo;
+a1 = Musician.objects.create(name="Batidão Tropical 2", musician=m1) - recebendo a variavel m1
+
+Dessa forma eu consigo atribuir no banco de dados o album para o artista e posso atraves do album chamar o nome do artista.
+Ex:
+a1.musician.first_name
+O python retorna "Pabllo"
+--------------
+RELACIONAMENTO N-N (vide tags.models)
+
+O relacionamento N para N permite que varios items de uma tabela se relacionem com varios item de outra tabela.
+Nesse caso vamos criar Tags para nossos albums (um album pode ter varias tags assim como uma tag pode ser aplicada para varios albuns)
+
+class Tag(models.Model):
+    name = models.CharField(max_length=255)
+
+    albums = models.ManyToManyField("albums.Album", related_name="tags")
+
+semelhante ao relacionamento 1-1 eu suo um atributo da models as dessa vez é o ManyToManyField, que recebe como parametro arquivo.classe que vai se relacionar com a outra.
+
+A partir do momento da criação das migrações o django irá automaticamente criar uma tabela pivô para administrar esse relacionamento. 
+
+o django irá criar uma tabela das tags e uma tags_tag_albums que é a tabela pivô.
+
+Eu tenho duas maneiras de criar uma tag dentro de um album.
+
+ex:
+após atribuir um album a uma variavel e tambem de criar uma tag:
+a1.tags.add(t1) - Adicionei a tag "BregaFunk" ao album "Batidão Tropical 2". Eu posso puxar qual tag está nesse album usando a1.tags.values()
+
+eu posso tambem usar o método a1.tags.set([t1, t2]) - passando mais de uma tag dentro de uma lista.
+Esse método possibilita que eu adicione mais de uma tag de uma vez só, com a diferença de que ELE SOBRESCREVE AS TAGS ANTERIORES E ATRIBUI OS NOVOS VALORES.
+----------------------------------------------------
+FIELD CHOICES
+
+Recurso disponivel no django para oferecer uma lista de opções pré definidas em um determinado campo em uma model. Util para restringir as opções disponiveis para um determinado campo a um conjunto com valores especifico.
+
+Nesse caso o codigo ficaria assim: 
+
+from django.db import models
+
+class CategoryProduct(models.TextChoices): - ao usar esse campo de escolhas eu crio uma classe com os campos que serão recebidos herdando de models.TextChoices
+    DRINK = "Drink"
+    MEAT = "Meat"
+    CANDY = "Candy"
+    FRUIT = "Fruit"
+    OTHER = "Other"
+
+class Product(models.Model):
+    name = models.CharField(max_length=20)
+    category = models.CharField(
+        max_length=30, #criação do nome do produto
+        choices=CategoryProduct.choices, #seleção de um dos tipos de produto com base na tabela criada acima;
+        default=CategoryProduct.OTHER #por defaut irá classificar um produto como Other
+    )
+    price = models.DecimalField(decimal_places=2, max_digits=5) #preço do produto
+
+para criar o objeto produto eu posso rodar no shell do python
+
+>>> from products.models import Product
+>>> p1 = Product(name="Laranjinha - Água da Serra", category='Drink', price=6.50)
+>>> p1.save()
+
+ao passar p1.__dict__ ele vai trazer certinho os atributos desse dado que eu criei. Lembrando que eu passo o parametro 'Drink' na forma de string;
+nesse caso se eu digitar alguma outra categoria que não foi criada no CategoryProduct ele vai aceitar. Isso não é uma boa pratica, pois ele não mantem a integridade dos dados do jeito que esperamos.
+
+Podemos passar em category o parametro models.ChoiceField, que obrigatóriamente exige que uma categoria se enquadre na que ja foi criada.
+A criação de um objeto ficaria como 
+p2 = Product(name='Bala Fini', category=CategoryProduct.CANDY, price=6.50)
+------------------------------
+Formas de deleção
+
+Quando começamos a criar relacionamentos no banco de dados é importante prever como iremos tratar as deleções, visto que ela impacta em toda a estrutura.
+Para isso temos um metodo on_delete=models.'método' com o parametro correto de como será tratado essa deleção. 
+
+CASCADE: ao deletar a model, todos os relacionamentos que dependem dela pra existir serão excluidos por consequencia. 
+
+PROTECT: protege uma model que tem relacionamentos de ser apagada. Caso haja uma tentativa retornará um ProtectedError. Só será possivel exclui-la quando ela não tiver mais nenhum relacionamento (deve ser criado os objetos que dependem dela e só assim deleta-la definitivamente).
+
+RESTRICT: para que uma model seja excluida, deve se excluir os objetos que dependem dela da camada mais interna para a camada mais externa. Se eu tentar deleta-la sem respetirar isso será retornado o erro RestrictedError. Porém diferente do PROTECT ele apenas emite um aviso e permite que a exclusão continue.
+
+SET_NULL: ao deletar uma model, o campo será preenchido como null. Para que essa opção funcione deve ser setado também um null=True, para permitir que essa model receba um valor nulo. 

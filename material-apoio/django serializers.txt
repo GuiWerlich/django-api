@@ -1,0 +1,163 @@
+SERIALIZERS
+
+Os serializers são classes que controlam a conversão de dados entre o formato Python e o fomato de saída (JSON ou XML). São usados para codificar os dados de modelo do django para envia-los como uma resposta http e para decodificar os dados http para atualizar ou criar um modelo.
+
+Além desse trabalho importante, o serializer tem alguns recursos adicionais de validação de dados, que ajudam a garantir que os dados recebidos são validos antes de serem processados. 
+
+-----------------
+EXEMPLO PRATICO (vide accounts)
+
+dentro de Accounts, iremos criar uma classe serializer que possui os mesmos campos da classe model de Accounts.
+
+feito isso podemos testar o processo de validação de dados de entrada, pensando que nosso dicionario account_dict poderia vir do body de um POST.
+utilizando a shell do django podemos realizar os seguintes passos
+
+importamos o serializer e a models;
+atribuimos uma variavel serializer que recebe AccountSerializer.
+eu crio uma variavel chamada AccountData, onde será passado em forma de dicionario as chaves e os valores correspondentes igual está na models.
+após isso, atribuimos em uma variavel serializer o AccountSerializer(data=account_dict) - que recebe como parametro nosso dicionario.
+
+Podemos verificar se o serializer está valido utilizando o metodo "is_valid()". ele retorna um valor booleano indicando se estpa valido ou não.
+Caso retorne False, podemos utilizar o  metodo ".errors" no qual ele irá retornar todos os erros e a justificativa de ele não estar valido.
+Caso retorne True, podemos inspecionar o conteúdo usando o método ".data"
+
+Dessa forma podemos garantir a persistencia e validação dos dados que recebemos ou enviamos.
+------------------------------------------
+FIELD CHOICES SERIALIZERS
+
+Assim como usado no products.models, definimos o field choices, e o serializer também consegue usar esse recurso.
+funciona da mesma forma que acima, as validações, os dados e os erros são chamados da mesma forma.
+
+----------------------------------------
+SERIALIZERS ANINHADOS (vide accounts)
+
+dentro de accounts.models eu criei 2 classes, sendo elas account e address
+
+A classe Address recebe um atributo user que é um objeto da minha classe Account.
+
+e dentro de accounts.serializers eu tenho as duas classes respectivas a minha models, porém a classe do Address tem um atributo addresses que recebe um many=True, o que significa que esse campo recebe multiplas informações. 
+
+na shell do manage.Python
+>>> from accounts.models import Account, Address
+>>> from account.serializers import AccountSerializer
+
+eu crio dois dicionários: 
+account_data = {'name': 'Guilherme', 'email': 'guiwerlichdev@gmail.com', 'age': 29, 'sex': 'Male'}
+address_data = {'street': 'Gabriel ferreira filho', 'house_number': '416', 'city': 'Curitiba', 'zip_code': '81550220'}
+
+account  = Account.objects.create(**account_data)
+address =  Address.objects.create(user=account, **address_data)
+
+após isso eu inicio o meu serializer
+serializer = AccountSerializer(account)
+serializer.data
+
+nisso, o serializervai retornar pra mim todos os campos e em addresses vai abrir uma lista contendo o dicionário dos campos de address que eu defini. nesse caso eu posso ter mais de um address.
+-------------------------------------------
+PALAVRA CHAVE SOURCE
+
+no nosso serializer, podemos passar atributos com nome diferente do que está na nossa model. ex:
+
+class Account(models.Model):
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    age = models.IntegerField()
+    sex = models.CharField(max_length=255)
+
+class AccountSerializer(serializers.Serializer):
+    name_user = serializers.CharField()
+    email = serializers.EmailField()
+    age = serializers.IntegerField()
+    sex = serializers.CharField()
+
+# shell do Django
+from accounts.models import Account
+from accounts.serializers import AccountSerializer
+
+# Nosso dado de entrada, com a chave 'name'
+account_dict = {
+    "name": "Angela",
+    "email": "angela@gmail.com",
+    "age": 22,
+    "sex": "feminino",
+}
+
+# Verificando se os dados de entrada são válidos
+serializer = AccountSerializer(data=account_dict)
+serializer.is_valid()
+# False
+serializer.errors
+# {'name_user': [ErrorDetail(string='This field is required.', code='required')]}
+
+
+# Caso mudemos nossa entrada para conter 'name_user' invés de 'name'
+account_dict = {
+    "name_user": "Angela",
+    "email": "angela@gmail.com",
+    "age": 22,
+    "sex": "feminino",
+}
+
+serializer = AccountSerializer(data=account_dict)
+serializer.is_valid()
+# True
+serializer.validated_data
+# OrderedDict([('name_user', 'Angela'),
+#              ('email', 'angela@gmail.com'),
+#              ('age', 22),
+#              ('sex', 'feminino')])
+
+# .validated_data possui a chave 'name_user',
+# que não existe como atributo na model
+account = Account.objects.create(**serializer.validated_data)
+# TypeError: Account() got unexpected keyword arguments: 'name_user'
+
+Isso irá acontecer por que não existe um 'name_user' dentro da model. Para isso , dentro do serializer passamos o parametro source="name" dentro do name_user, pois dessa forma, ele irá fazer uma conversão automática para esse nome, fazendo com que seja possivel montar nosso objeto da classe Account
+-------------------------------
+CAMPOS DE LEITURA E ESCRITA
+
+read_only / write_only
+Campos "read_only" são exibidos quando você lê os dados, mas não podem ser escritos na API. Por exemplo, um campo "id" é geralmente definido como "read_only" para evitar que ele seja alterado pelo usuário da API.
+
+Campos "write_only" são campos escritos na API, mas não são exibidos quando você lê os dados. Por exemplo, um campo "senha" é geralmente definido como "write_only" para garantir que a senha não seja exibida na API.
+
+Observe os exemplos:
+
+# accounts/serializers.py
+class AccountSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    first_name = serializers.CharField(source="name")
+    password = serializers.CharField(write_only=True)
+    email = serializers.EmailField()    
+
+# shell do Django
+from accounts.serializers import AccountSerializer
+from accounts.models import Account
+
+# Tentando passar "id" como campo
+account_dict = {
+    "id": 100000,
+    "first_name": "Angela",
+    "password": "1234",
+    "email": "angela@gmail.com"
+
+}
+
+serializer = AccountSerializer(data=account_dict)
+serializer.is_valid()
+# True
+serializer.validated_data
+
+# OrderedDict([('name', 'Angela'),
+#              ('password', '1234'),
+#              ('email', 'angela@gmail.com')])
+
+acc = Account.objects.create(**serializer.validated_data)
+
+serializer = AccountSerializer(acc)
+serializer.data
+# {'id': 1, 'first_user': 'Angela', 'email': 'angela@gmail.com'}
+
+Perceba que o campo id foi ignorado nos dados de entrada. Nosso serializer ignorou a chave "id" do dicionário de entrada, pois ela, apesar de estar sendo mapeada em AccountSerializer, esta com a propriedade read_only como True. Logo, o dado foi ignorado nos campos de entrada e foi apenas mostrado na saída da visualização.
+
+Em contrapartida, nosso atributo "password" foi obrigatório na validação de entrada, porém não foi mostrado no retorno dos dados em serializer.data.
