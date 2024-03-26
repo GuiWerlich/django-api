@@ -1,0 +1,10 @@
+QUERY PARAMS
+
+Os query params são parâmetros enviados na URL de uma requisição GET. Eles são usados para filtrar, ordenar ou paginar resultados de uma consulta de API. No Django Rest Framework (DRF), os query params podem ser lidos através do dicionário request.query_params em uma APIView. Eles podem ser usados para implementar lógicas de negócio ou personalizar a resposta da API.
+
+Exemplificando
+Exemplo de requisição com query params:
+
+GET http://127.0.0.1:8000/api/accounts/?sex=male&name=Guilherme
+
+vide accounts.views!

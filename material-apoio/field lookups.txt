@@ -1,0 +1,82 @@
+FIELD LOOKUPS
+
+field lookups facilitam buscas avançadas em um banco de dados que, sem eles, teriamos que fazer um bloco de codigo para pegar somente os registros que entram em uma condição x.
+Por exemplo, imaginem o cenário em que temos um banco de dados que armazena vários registros de conteúdos relacionados a programação. Se quisermos pegar somente os registros que contenham, independente da posição, a palavra "Django" em seu nome, como faríamos?
+
+como exemplo instanciamos esses objetos de classe no shell
+
+# shell do Django
+from contents.models import Content
+from authors.models import Author
+
+content_1 = {"name": "Introdução ao Django"}
+content_2 = {"name": "Relacionamentos em Django"}
+content_3 = {"name": "Manipulação de arquivos com Python"}
+
+author_1 = {"name": "Lucira"}
+author_2 = {"name": "Caique"}
+
+a1 = Author.objects.create(**author_1)
+a2 = Author.objects.create(**author_2)
+
+Content.objects.create(**content_1, author=a1)
+Content.objects.create(**content_2, author=a2)
+Content.objects.create(**content_3, author=a1)
+
+--se fossemos fazer um filtro avançado usando SQL puro seria:
+SELECT * FROM contents WHERE name LIKE '%Django%';
+
+-- No contexto Django sem FieldLookups:
+
+# shell do Django
+contents = Content.objects.all()
+
+filtered_contents = []
+for content in contents:
+    if "Django" in content.name:
+        filtered_contents.append(content)
+
+
+--No contexto Django com FieldLookups:
+contents = Content.objects.filter(name__contains='Django')
+
+Notem que, sem o uso de field lookups, tivemos que desenvolver uma lógica para que conseguíssemos os mesmos dados, já no bloco com field lookups essa busca foi facilitada, não foi preciso fazer nenhuma lógica.
+
+Sintaxe
+Os FieldLookups são utilizados a partir dos métodos .get(), .filter(), .all().
+
+Peguemos o exemplo acima:
+
+contents = Content.objects.filter(name__contains='Django')
+contents
+# <QuerySet [<Content: Content object (1)>, <Content: Content object (2)>]>
+
+Content.objects.filter(): método de filtro.
+name: nome do campo que queremos usar como parâmetro de busca.
+__: dunder obrigatório que sinaliza que a palavra seguinte se trata de um FieldLookup.
+contains: FieldLookup em si, este em específico verifica se o registro contém o valor que colocamos a seguir.
+Alguns outros FieldLookups:
+
+icontains: semelhante ao contains, porém este é case-insensitive,
+endswith: filtrará os registros em que o valor termine com o valor passado.
+gte: filtrar registro onde o valor é maior ou igual ao parâmetro passado.
+lte: filtrar registro onde o valor é menor ou igual ao parâmetro passado.
+
+-------------------------------------
+FIELDLOOKUPS ENVOLVENDO RELACIONAMENTOS
+
+Ainda no exemplo anterior, imaginem que a model de Content possui relacionamento com outra Author e queremos filtrar somente os conteúdos feitos por um autor específico, como faríamos?
+
+contents = Content.objects.filter(author__name='Lucira')
+contents
+# <QuerySet [<Content: Content object (1)>, <Content: Content object (3)>]>
+
+Onde:
+
+author: nome do campo referente ao relacionamento que está na model de Content.
+name: campo nome referente à outra model (Author).
+Também é possível utilizar expressões como "contains", "endswith".
+
+contents = Content.objects.filter(author__name__endswith='e')
+contents
+# <QuerySet [<Content: Content object (2)>]>

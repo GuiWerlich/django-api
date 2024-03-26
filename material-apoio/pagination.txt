@@ -1,0 +1,15 @@
+PAGINATION
+
+O pagination em django é uma ferramenta poderosa, que possibilita limitar o número de requisições que será feito por pagina.
+isso ajuda a entregar mais performance para a aplicação além de economizar em requisições dependendo do tamanho e capacidade do servidor.
+
+Para usar a paginação criamos dentro das settings uma variável global:
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 5
+}
+
+aqui estamos utilizando de uma classe do rest_framework chamada de pagination que tem o metodo PageNumberPagination, no qual podemos limitar quantos dados serão retornandos de uma requisição por pagina, no exemplo acima limitando em 5.
+
+Para que seja possivel usar essa classe precisamos fazer algumas alterações que podem ser vistas no método get da views de musician
